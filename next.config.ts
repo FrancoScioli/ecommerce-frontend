@@ -16,8 +16,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.s3.sa-east-1.amazonaws.com',
-        port: '',
+        hostname: 'mi-bucket-ecommerce.s3.sa-east-1.amazonaws.com',
         pathname: '/**',
       },
       {
@@ -27,7 +26,6 @@ const nextConfig: NextConfig = {
         hostname: 'https://7M.onrender.com'
       }
     ],
-    // bucket región
   },
 };
 
