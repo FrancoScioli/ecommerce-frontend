@@ -51,6 +51,7 @@ export default function Footer() {
           <h3 className="font-semibold mb-2">Seguinos</h3>
           <div className="flex space-x-4 text-pink-500 mb-2">
             <a href={ADMIN_CONTACT_INFO.instagram} target="_blank" rel="noopener noreferrer"><FaInstagram size={20} /></a>
+            7M
           </div>
           <div className="text-sm text-gray-600">
             <p><a href={`mailto:${ADMIN_CONTACT_INFO.email}`}>{ADMIN_CONTACT_INFO.email}</a></p>
