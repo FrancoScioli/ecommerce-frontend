@@ -41,7 +41,6 @@ export default function CreateAdminPage() {
           password,
           firstName,
           lastName,
-          role: "ADMIN",
           recaptchaToken,
         }),
       })
