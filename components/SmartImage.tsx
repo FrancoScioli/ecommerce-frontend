@@ -11,6 +11,7 @@ export default function SmartImage({ fallbackToUnoptimized = true, onError, ...r
     <Image
       {...rest}
       unoptimized={unopt}
+      alt="optimized carousel image"
       onError={(e) => {
         if (fallbackToUnoptimized && !unopt) setUnopt(true);
         onError?.(e);

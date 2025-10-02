@@ -22,6 +22,59 @@ interface ProductFormProps {
   onCancelEdit?: () => void
 }
 
+
+function hasCategoryId(p: unknown): p is { categoryId: number } {
+  return typeof (p as { categoryId?: unknown })?.categoryId === "number"
+}
+
+function hasCategoryObj(p: unknown): p is { category: { id: number } } {
+  const cat = (p as { category?: unknown })?.category
+  return typeof (cat as { id?: unknown })?.id === "number"
+}
+
+// Normalizo las variantes a variantInput
+
+type RawOption = string | { value?: unknown }
+type RawVariant = { name?: unknown; options?: unknown }
+
+function isStringArray(arr: unknown): arr is string[] {
+  return Array.isArray(arr) && arr.every((x) => typeof x === "string")
+}
+
+function extractOptionValue(opt: RawOption): string | null {
+  if (typeof opt === "string") return opt
+  const val = opt?.value
+  return typeof val === "string" ? val : null
+}
+
+function normalizeVariant(v: unknown): VariantInput {
+  const rv = (v ?? {}) as RawVariant
+  const name = typeof rv.name === "string" ? rv.name : ""
+
+  // options puede ser string[], ( {value:string}|string )[], o cualquier cosa
+  const optionsRaw = rv.options
+  let options: string[] = []
+  if (Array.isArray(optionsRaw)) {
+    const collected: string[] = []
+    for (const o of optionsRaw as RawOption[]) {
+      const val = extractOptionValue(o)
+      if (typeof val === "string" && val.trim()) collected.push(val.trim())
+    }
+    options = collected
+  } else if (isStringArray(optionsRaw)) {
+    options = optionsRaw.map((s) => s.trim()).filter(Boolean)
+  }
+
+  return { name, options, inputValue: "" }
+}
+
+function getIncomingCategoryId(initial: Product | undefined): number | "" {
+  if (!initial) return ""
+  if (hasCategoryId(initial)) return initial.categoryId
+  if (hasCategoryObj(initial)) return initial.category.id
+  return ""
+}
+
 export default function ProductForm({
   mode = "create",
   initialValues,
@@ -51,11 +104,7 @@ export default function ProductForm({
 
         // Preselección de categoría
         if (mode === "edit" && initialValues) {
-          const incomingCatId =
-            // intenta tomar la forma más común primero
-            (initialValues as any).categoryId ??
-            (initialValues as any).category?.id ??
-            ""
+          const incomingCatId = getIncomingCategoryId(initialValues)
           setCategoryId(incomingCatId || (data[0]?.id ?? ""))
         } else {
           if (data.length) setCategoryId(data[0].id)
@@ -85,26 +134,21 @@ export default function ProductForm({
 
     setName(initialValues.name ?? "")
     setDescription(initialValues.description ?? "")
-    setPrice(
-      typeof initialValues.price === "number"
-        ? String(initialValues.price)
-        : (initialValues.price as any) ?? ""
-    )
+    const p: unknown = (initialValues as { price?: unknown }).price
+    let priceStr = ""
+    if (typeof p === "number") priceStr = String(p)
+    else if (typeof p === "string") priceStr = p
+    setPrice(priceStr)
 
-    // Variants → transformar a VariantInput
-    const inVariants = ((initialValues as any).variants ?? []) as Array<{
-      name: string
-      options?: Array<{ value: string } | string>
-    }>
-    const normalized: VariantInput[] = inVariants.map((v) => ({
-      name: v.name ?? "",
-      options: Array.isArray(v.options)
-        ? v.options.map((o: any) => (typeof o === "string" ? o : o?.value)).filter(Boolean)
-        : [],
-      inputValue: "",
-    }))
+    // Variants → transformar a VariantInput sin any
+    const rawVariants = (initialValues as { variants?: unknown })?.variants
+    const normalized: VariantInput[] = Array.isArray(rawVariants)
+      ? (rawVariants as unknown[]).map(normalizeVariant)
+      : []
     setVariants(normalized)
-    setImages([]) // en edición, si no elige imágenes nuevas, no toca las actuales
+
+    // en edición, si no elige imágenes nuevas, no toca las actuales
+    setImages([])
   }, [mode, initialValues])
 
   function handleImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -159,16 +203,12 @@ export default function ProductForm({
     e.preventDefault()
 
     // Validaciones
-    if (!name || !description || !price || !categoryId) {
-      return toast.error("Faltan datos obligatorios")
-    }
+    if (!name || !description || !price || !categoryId) return toast.error("Faltan datos obligatorios")
+
     const parsedPrice = parseFloat(price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      return toast.error("El precio debe ser un número válido")
-    }
-    if (mode === "create" && images.length === 0) {
-      return toast.error("Debes subir al menos una imagen")
-    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) return toast.error("El precio debe ser un número válido")
+
+    if (mode === "create" && images.length === 0) return toast.error("Debes subir al menos una imagen")
 
     // Armado FormData
     const form = new FormData()
@@ -201,8 +241,8 @@ export default function ProductForm({
         body: form, // ⬅️ no seteamos Content-Type
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => null)
-        throw new Error(err?.message || "Error al guardar el producto")
+        const errJson = await res.json().catch(() => null)
+        throw new Error((errJson as { message?: string } | null)?.message || "Error al guardar el producto")
       }
 
       toast.success(mode === "edit" ? "Producto actualizado" : "Producto creado")
@@ -217,8 +257,12 @@ export default function ProductForm({
         onCancelEdit?.()
       }
       onSuccess()
-    } catch (err: any) {
-      toast.error(err.message || "Error de red, inténtalo nuevamente")
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message || "Error de red, inténtalo nuevamente")
+      } else {
+        toast.error("Error de red, inténtalo nuevamente")
+      }
     } finally {
       setSubmitting(false)
     }
@@ -282,7 +326,7 @@ export default function ProductForm({
         <label className="block text-sm font-medium mb-1">Categoría</label>
         <select
           value={categoryId}
-          onChange={(e) => setCategoryId(+e.target.value)}
+          onChange={(e) => setCategoryId(Number(e.target.value))}
           className="w-full border rounded px-3 py-2"
           required
         >

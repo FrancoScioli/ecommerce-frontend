@@ -16,8 +16,12 @@ export default function IntegrationsPage() {
       if (!res.ok) throw new Error('No se pudo iniciar la sincronización')
       const data = await res.json().catch(() => ({}))
       toast.success(data.message || 'Sincronización iniciada')
-    } catch (e: any) {
-      toast.error(e.message ?? 'Error al iniciar sincronización')
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        toast.error(e.message ?? 'Error al iniciar sincronización')
+      } else {
+        toast.error('Error al iniciar sincronización')
+      }
     } finally {
       setLoading(false)
     }
