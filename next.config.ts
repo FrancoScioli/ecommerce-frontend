@@ -2,11 +2,10 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   trailingSlash: true,
   webpack: (config) => {
-    config.resolve.alias['@'] = path.resolve(__dirname)
-    return config
+    config.resolve.alias['@'] = path.resolve(__dirname);
+    return config;
   },
   reactStrictMode: true,
   env: {
@@ -19,13 +18,40 @@ const nextConfig: NextConfig = {
         hostname: 'mi-bucket-ecommerce.s3.sa-east-1.amazonaws.com',
         pathname: '/**',
       },
+      // por si cambio el bucket de region 
       {
-        hostname: 'localhost'
+        protocol: 'https',
+        hostname: 'mi-bucket-ecommerce.s3-*.amazonaws.com',
+        pathname: '/**',
       },
       {
-        hostname: 'https://7M.onrender.com'
-      }
+        protocol: 'http',
+        hostname: 'localhost',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '7m.onrender.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images-cdn.zecat.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'zecat-user-images-prod.s3.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'd1yq3fbd6icaus.cloudfront.net',
+        pathname: '/**',
+      },
     ],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
 

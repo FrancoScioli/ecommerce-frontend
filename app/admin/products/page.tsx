@@ -24,15 +24,14 @@ export default function AdminProductsPage() {
   const fetchWithRefresh = useFetchWithRefresh();
   const [modalMessage, setModalMessage] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null); // ⬅️ NEW
 
   const {
     data: products,
     isLoading,
     isError,
     mutate,
-  } = useAuthFetch<Product[]>(
-    `${process.env.NEXT_PUBLIC_API_URL}/product`
-  );
+  } = useAuthFetch<Product[]>(`${process.env.NEXT_PUBLIC_API_URL}/product`);
 
   if (isLoading) return <Spinner />;
   if (isError)
@@ -66,9 +65,17 @@ export default function AdminProductsPage() {
     <section className="container mx-auto px-4 py-10 space-y-8">
       <h1 className="text-2xl font-bold">{TEXT_TITLE}</h1>
 
-      {/* Formulario para crear nuevos productos */}
+      {/* Formulario para crear/editar productos */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <ProductForm onSuccess={() => mutate()} />
+        <ProductForm
+          mode={editingProduct ? 'edit' : 'create'}
+          initialValues={editingProduct ?? undefined}
+          onCancelEdit={() => setEditingProduct(null)}
+          onSuccess={() => {
+            setEditingProduct(null);
+            mutate();
+          }}
+        />
       </div>
 
       <h2 className="text-xl font-semibold">{TEXT_LIST_TITLE}</h2>
@@ -86,17 +93,28 @@ export default function AdminProductsPage() {
           {products.map((prod) => (
             <div key={prod.id} className="relative">
               <AdminProductCard {...prod} />
-              <button
-                onClick={() => setProductToDelete(prod)}
-                className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600"
-              >
-                Eliminar
-              </button>
+
+              {/* Botón Editar */}
+              <div className="absolute top-2 right-2 flex gap-2">
+                <button
+                  onClick={() => setEditingProduct(prod)}
+                  className="bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-700"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => setProductToDelete(prod)}
+                  className="bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Modal de confirmación eliminar */}
       {productToDelete && (
         <ConfirmationModal
           open={Boolean(productToDelete)}

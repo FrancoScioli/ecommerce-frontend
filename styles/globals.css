@@ -74,6 +74,9 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 @layer base {
   * {
     @reference border-gray-200 dark:border-gray-800;

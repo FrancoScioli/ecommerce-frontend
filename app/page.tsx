@@ -16,7 +16,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await fetch(`${API_URL}/category`);
+        const res = await fetch(`${API_URL}/category?hideEmpty=true&withCounts=true&onlyActive=false`);
         if (!res.ok) throw new Error("Error al obtener categorías");
         const data: Category[] = await res.json();
         setCategories(data);

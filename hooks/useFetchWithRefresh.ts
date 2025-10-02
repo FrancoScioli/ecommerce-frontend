@@ -1,33 +1,45 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 export function useFetchWithRefresh() {
   const { logout, refreshAccessToken } = useAuth();
+  // evitar refresh simultáneos
+  const refreshInFlight = useRef<Promise<boolean> | null>(null);
+
+  const withAuthHeaders = (options: RequestInit = {}): RequestInit => {
+    const token = localStorage.getItem("accessToken") || "";
+    const baseHeaders: HeadersInit = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    };
+    return {
+      credentials: "include",
+      ...options,
+      headers: baseHeaders,
+    };
+  };
 
   const fetchWithRefresh = useCallback(
     async (url: string, options: RequestInit = {}): Promise<Response> => {
-      let res = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      let res = await fetch(url, withAuthHeaders(options));
 
       if (res.status === 401) {
-        const ok = await refreshAccessToken();
+        if (!refreshInFlight.current) {
+          refreshInFlight.current = (async () => {
+            const ok = await refreshAccessToken();
+            return ok;
+          })();
+        }
+
+        const ok = await refreshInFlight.current.catch(() => false);
+        refreshInFlight.current = null;
+
         if (!ok) {
           logout();
           throw new Error("Sesión expirada");
         }
 
-        res = await fetch(url, {
-          ...options,
-          headers: {
-            ...(options.headers || {}),
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
+        res = await fetch(url, withAuthHeaders(options));
       }
 
       return res;
