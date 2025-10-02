@@ -31,7 +31,7 @@ export default function Navbar() {
               Mis compras
             </Link>
           )}
-          <Link href="/tienda" className="hover:underline">
+          <Link href="/" className="hover:underline">
             Tienda
           </Link>
           {!isAuthenticated && (

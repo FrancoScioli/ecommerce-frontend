@@ -115,15 +115,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshAccessToken = async (): Promise<boolean> => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`
+
+      let res = await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
       })
+
+      if (res.status === 400 || res.status === 401) {
+        res = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        })
+      }
 
       if (!res.ok) return false
 
       const { accessToken: newToken, refreshToken: newRefresh } = await res.json()
+
       localStorage.setItem("accessToken", newToken)
       if (newRefresh) {
         localStorage.setItem("refreshToken", newRefresh)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import SmartImage from "./SmartImage";
 
 interface CarouselImage {
   id: string;
@@ -35,16 +36,16 @@ export default function Carousel() {
       {images.map((img, idx) => (
         <div
           key={img.id}
-          className={`absolute inset-0 transition-opacity duration-1000 ${
-            idx === current ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 transition-opacity duration-1000 ${idx === current ? "opacity-100" : "opacity-0"
+            }`}
         >
-          <Image
+          <SmartImage
             src={img.imageUrl}
             alt={`Banner ${idx + 1}`}
-            layout="fill"
-            objectFit="cover"
+            fill
+            className="object-cover"
             priority={idx === 0}
+
           />
         </div>
       ))}

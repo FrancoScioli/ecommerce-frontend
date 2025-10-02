@@ -78,6 +78,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           >
             Ventas
           </Link>
+          <Link
+            href="/admin/integrations"
+            className={`hover:underline ${pathname.startsWith("/admin/integrations") ? "font-bold" : ""}`}
+          >
+            Integraciones Zecat
+          </Link>
         </nav>
       </aside>
 
