@@ -153,10 +153,10 @@ export default function SearchBox() {
 
     function handleSelect(item: FlatProduct | FlatCategory) {
         if (isProductItem(item)) {
-            router.push(`/tienda?query=${encodeURIComponent(item.hit.name)}`)
-        } else {
-            router.push(`/tienda?category=${item.hit.id}`)
-        }
+            const id = item.hit.id
+            router.push(`/tienda/${id}`)
+        } else router.push(`/tienda?category=${item.hit.id}`)
+
         setOpen(false)
     }
 
