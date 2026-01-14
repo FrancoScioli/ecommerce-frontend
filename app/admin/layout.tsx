@@ -84,6 +84,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           >
             Integraciones Zecat
           </Link>
+          <Link
+            href="/admin/price-markup"
+            className={`hover:underline ${pathname.startsWith("/admin/price-markup") ? "font-bold" : ""}`}
+          >
+            Ajuste de precios
+          </Link>
         </nav>
       </aside>
 
