@@ -15,7 +15,6 @@ export default function PriceMarkupPage() {
     const [markup, setMarkup] = useState<string>("");
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
-    const [initialConfig, setInitialConfig] = useState<PricingConfig | null>(null);
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -33,7 +32,6 @@ export default function PriceMarkupPage() {
 
                 const value = data.providerMarkupPercent ?? 0;
                 setMarkup(String(value));
-                setInitialConfig(data);
             } catch (error) {
                 console.error(error);
                 toast.error("Error al cargar la configuración de precios");
