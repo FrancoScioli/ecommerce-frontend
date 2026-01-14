@@ -11,7 +11,8 @@ export default function AdminHome() {
     { href: "/admin/carousel", label: "Carousel", color: "purple" },
     { href: "/admin/create-admin", label: "Crear Admin", color: "green" },
     { href: "/admin/sales", label: "Ventas", color: "red" },
-    { href: "/admin/integrations", label: "Sincronización Zecat", color: "red"}
+    { href: "/admin/integrations", label: "Sincronización Zecat", color: "red" },
+    { href: "/admin/price-markup", label: "Ajuste de precios", color: "red" }
   ];
 
   return (
