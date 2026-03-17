@@ -19,6 +19,7 @@ export default function DashboardPage() {
         const res = await fetch(`${API_URL}/category?hideEmpty=true&withCounts=true&onlyActive=false`);
         if (!res.ok) throw new Error("Error al obtener categorías");
         const data: Category[] = await res.json();
+        console.log("Fetched categories:", JSON.stringify(data));
         setCategories(data);
       } catch (err: unknown) {
         if (err instanceof Error) {

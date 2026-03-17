@@ -7,7 +7,7 @@ export default function AdminProductCard({
   name,
   price,
   images,
-  category,
+  categories,
 }: Product) {
   const rawUrl = images?.[0]?.url
   let imageUrl: string | null = null
@@ -40,8 +40,11 @@ export default function AdminProductCard({
       </div>
       <div className="p-4 space-y-2">
         <h3 className="font-medium">{name}</h3>
-        <p className="text-gray-600">Categoría: {category.name}</p>
-        <p className="font-bold text-lg">${price.toFixed(2)}</p>
+        <p className="text-gray-600">
+          {categories?.length
+            ? categories.map(c => c.name).join(', ')
+            : 'Sin categoría'}
+        </p>        <p className="font-bold text-lg">${price.toFixed(2)}</p>
       </div>
     </div>
   )

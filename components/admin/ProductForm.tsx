@@ -22,16 +22,6 @@ interface ProductFormProps {
   onCancelEdit?: () => void
 }
 
-
-function hasCategoryId(p: unknown): p is { categoryId: number } {
-  return typeof (p as { categoryId?: unknown })?.categoryId === "number"
-}
-
-function hasCategoryObj(p: unknown): p is { category: { id: number } } {
-  const cat = (p as { category?: unknown })?.category
-  return typeof (cat as { id?: unknown })?.id === "number"
-}
-
 // Normalizo las variantes a variantInput
 
 type RawOption = string | { value?: unknown }
@@ -68,11 +58,9 @@ function normalizeVariant(v: unknown): VariantInput {
   return { name, options, inputValue: "" }
 }
 
-function getIncomingCategoryId(initial: Product | undefined): number | "" {
-  if (!initial) return ""
-  if (hasCategoryId(initial)) return initial.categoryId
-  if (hasCategoryObj(initial)) return initial.category.id
-  return ""
+function getIncomingCategoryIds(initial: Product | undefined): number[] {
+  if (!initial) return []
+  return (initial.categories ?? []).map(c => c.id)
 }
 
 export default function ProductForm({
@@ -84,7 +72,7 @@ export default function ProductForm({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
-  const [categoryId, setCategoryId] = useState<number | "">("")
+  const [categoryIds, setCategoryIds] = useState<number[]>([])
   const [images, setImages] = useState<File[]>([])
   const [variants, setVariants] = useState<VariantInput[]>([])
   const [allCategories, setAllCategories] = useState<Category[]>([])
@@ -104,10 +92,10 @@ export default function ProductForm({
 
         // Preselección de categoría
         if (mode === "edit" && initialValues) {
-          const incomingCatId = getIncomingCategoryId(initialValues)
-          setCategoryId(incomingCatId || (data[0]?.id ?? ""))
+          const ids = getIncomingCategoryIds(initialValues)  // ← función correcta
+          setCategoryIds(ids.length ? ids : data[0] ? [data[0].id] : [])
         } else {
-          if (data.length) setCategoryId(data[0].id)
+          if (data.length) setCategoryIds([data[0].id])
         }
       } catch {
         toast.error("No se pudieron cargar las categorías")
@@ -128,6 +116,7 @@ export default function ProductForm({
         setPrice("")
         setImages([])
         setVariants([])
+        setCategoryIds(allCategories.length ? [allCategories[0].id] : [])
       }
       return
     }
@@ -203,7 +192,7 @@ export default function ProductForm({
     e.preventDefault()
 
     // Validaciones
-    if (!name || !description || !price || !categoryId) return toast.error("Faltan datos obligatorios")
+    if (!name || !description || !price || categoryIds.length === 0) return toast.error("Faltan datos obligatorios")
 
     const parsedPrice = parseFloat(price)
     if (isNaN(parsedPrice) || parsedPrice <= 0) return toast.error("El precio debe ser un número válido")
@@ -215,7 +204,7 @@ export default function ProductForm({
     form.append("name", name)
     form.append("description", description)
     form.append("price", parsedPrice.toString())
-    form.append("categoryId", categoryId.toString())
+    form.append("categoryIds", JSON.stringify(categoryIds))
 
     const variantsPayload = variants
       .filter((v) => v.name.trim() && v.options.length > 0)
@@ -324,18 +313,24 @@ export default function ProductForm({
       {/* Categoría */}
       <div>
         <label className="block text-sm font-medium mb-1">Categoría</label>
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(Number(e.target.value))}
-          className="w-full border rounded px-3 py-2"
-          required
-        >
+        <div className="space-y-2 max-h-48 overflow-y-auto border rounded p-2">
           {allCategories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
+            <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={categoryIds.includes(cat.id)}
+                onChange={(e) =>
+                  setCategoryIds(prev =>
+                    e.target.checked
+                      ? [...prev, cat.id]
+                      : prev.filter(id => id !== cat.id)
+                  )
+                }
+              />
               {cat.name}
-            </option>
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Imágenes */}

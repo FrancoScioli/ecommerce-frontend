@@ -42,7 +42,7 @@ export default function TiendaPage() {
 
   const categoryName =
     categoryId && products && products.length > 0
-      ? products[0].category?.name
+      ? products[0].categories?.[0]?.name
       : null;
 
   return (

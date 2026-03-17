@@ -3,10 +3,10 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  category: {
+  categories: {
     id: number;
     name: string;
-  };
+  }[];
   images: { url: string }[];
   variants?: {
     id: number;

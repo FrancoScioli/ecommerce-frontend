@@ -52,8 +52,10 @@ export default function ProductDetailPage() {
                     { label: "Home", href: "/" },
                     { label: "Categorías", href: "/tienda" },
                     {
-                        label: product.category.name,
-                        href: `/tienda?category=${product.category.id}`,
+                        label: product.categories[0]?.name ?? 'Categoría',
+                        href: product.categories[0]
+                            ? `/tienda?category=${product.categories[0].id}`
+                            : '/tienda',
                     },
                     { label: product.name },
                 ]}
