@@ -1,137 +1,119 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 
-export type GMapPrediction = google.maps.places.AutocompletePrediction & {
-  place_id: string
+// Tipo compatible con el checkout (usa sug.description)
+export type PlaceSuggestion = {
+  description: string
+  placeId: string
+  // Guardamos la referencia para poder hacer fetchFields después
+  _placePrediction: google.maps.places.PlacePrediction
 }
 
 interface Return {
   inputValue: string
   setInputValue: (v: string) => void
-  suggestions: GMapPrediction[]
-  setSuggestions: (v: GMapPrediction[]) => void
+  suggestions: PlaceSuggestion[]
+  setSuggestions: (v: PlaceSuggestion[]) => void
   address: string
   setAddress: (v: string) => void
   postalCode: string
   setPostalCode: (v: string) => void
   handleInputChange: (val: string) => void
-  handleSelectSuggestion: (pred: GMapPrediction) => Promise<void>
+  handleSelectSuggestion: (pred: PlaceSuggestion) => Promise<void>
+}
+
+function newToken() {
+  return new google.maps.places.AutocompleteSessionToken()
 }
 
 export function usePlacesAutocomplete(): Return {
-  const [inputValue, setInputValue] = useState('')
-  const [address, setAddress] = useState('')
-  const [postalCode, setPostalCode] = useState('')
-  const [suggestions, setSuggestions] = useState<GMapPrediction[]>([])
+  const [inputValue, setInputValue]   = useState('')
+  const [address, setAddress]         = useState('')
+  const [postalCode, setPostalCode]   = useState('')
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
 
-  const autoServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null)
+  // Un mismo token agrupa búsqueda + detalle en una sola sesión de facturación
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null)
+  // Para cancelar requests en vuelo si el usuario sigue escribiendo
+  const abortRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    if (window.google && window.google.maps) {
-      if (!autoServiceRef.current) {
-        autoServiceRef.current = new google.maps.places.AutocompleteService()
-      }
-      if (!placesServiceRef.current) {
-        const dummy = document.createElement('div')
-        placesServiceRef.current = new google.maps.places.PlacesService(dummy)
-      }
-      if (!sessionTokenRef.current) {
-        sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken()
-      }
-    }
-  }, [])
+  function getToken() {
+    if (!sessionTokenRef.current) sessionTokenRef.current = newToken()
+    return sessionTokenRef.current
+  }
 
-  const handleInputChange = (val: string) => {
+  function refreshToken() {
+    sessionTokenRef.current = newToken()
+  }
+
+  const handleInputChange = async (val: string) => {
     setInputValue(val)
     setAddress('')
     setPostalCode('')
 
-    // reseteo token si el usuario borró todo
-    if (val.trim() === '') {
-      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken()
+    if (!val.trim()) {
+      refreshToken()
       setSuggestions([])
       return
     }
 
-    if (!autoServiceRef.current) return
+    // Cancela request anterior
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const signal = abortRef.current.signal
 
-    autoServiceRef.current.getPlacePredictions(
-      {
-        input: val,
-        componentRestrictions: { country: 'ar' },
-        types: ['geocode'],
-        locationBias: { radius: 30000, center: { lat: -34.6037, lng: -58.3816 } }, // CABA
-        sessionToken: sessionTokenRef.current!,
-      },
-      async preds => {
-        if (preds && preds.length) {
-          setSuggestions(preds)
-          return
-        }
+    try {
+      const { suggestions: raw } =
+        await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input: val,
+          sessionToken: getToken(),
+          includedRegionCodes: ['ar'],
+          // Bias hacia CABA (radio 30 km)
+          locationBias: {
+            center: { lat: -34.6037, lng: -58.3816 },
+            radius: 30_000,
+          },
+        })
 
-        try {
-          const geoResp = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-              val,
-            )}&key=${process.env.NEXT_PUBLIC_GOOGLE_KEY}`,
-          ).then(r => r.json())
+      // La señal puede haber disparado antes de que llegue la respuesta
+      if (signal.aborted) return
 
-          const geocodePreds: GMapPrediction[] = (geoResp.results ?? []).map((r: google.maps.GeocoderResult) => ({
-            description: r.formatted_address,
-            place_id: r.place_id,
-            matched_substrings: [],
-            structured_formatting: {
-              main_text: r.formatted_address,
-              secondary_text: '',
-              main_text_matched_substrings: [],
-            },
-            terms: [],
-            types: ['geocode'],
-          }))
+      const mapped: PlaceSuggestion[] = raw
+        .filter(s => s.placePrediction !== null)
+        .map(s => ({
+          description: s.placePrediction!.text.text,
+          placeId: s.placePrediction!.placeId,
+          _placePrediction: s.placePrediction!,
+        }))
 
-          setSuggestions(geocodePreds)
-        } catch {
-          setSuggestions([])
-        }
-      },
-    )
+      setSuggestions(mapped)
+    } catch {
+      // AbortError es esperado cuando el usuario sigue escribiendo; ignorar
+      setSuggestions([])
+    }
   }
 
-  const fetchPostalCode = (placeId: string): Promise<string> => {
-    return new Promise(resolve => {
-      if (!placesServiceRef.current) return resolve('')
-
-      placesServiceRef.current.getDetails(
-        {
-          placeId,
-          fields: ['address_components'],
-          sessionToken: sessionTokenRef.current!, // mismo token
-        },
-        place => {
-          if (!place) return resolve('')
-
-          const comp = place.address_components?.find(c =>
-            c.types.includes('postal_code'),
-          )
-          resolve(comp?.long_name ?? '')
-        },
-      )
-    })
-  }
-
-  const handleSelectSuggestion = async (pred: GMapPrediction) => {
+  const handleSelectSuggestion = async (pred: PlaceSuggestion) => {
     setInputValue(pred.description)
     setAddress(pred.description)
     setSuggestions([])
 
-    const cp = await fetchPostalCode(pred.place_id)
-    setPostalCode(cp)
+    try {
+      // toPlace() + fetchFields reemplaza PlacesService.getDetails()
+      const place = pred._placePrediction.toPlace()
+      await place.fetchFields({ fields: ['addressComponents'] })
 
-    // renovamos token para la próxima búsqueda
-    sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken()
+      const cpComp = place.addressComponents?.find(c =>
+        c.types.includes('postal_code'),
+      )
+      setPostalCode(cpComp?.longText ?? '')
+    } catch {
+      setPostalCode('')
+    }
+
+    // Renovar token para la próxima búsqueda independiente
+    refreshToken()
   }
 
   return {
