@@ -12,16 +12,10 @@ export default function Navbar() {
   const { total, toggleSidebar } = useCart();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b">
-      {/* GRID 3 columnas: [logo] [centrado exacto: buscador] [acciones] */}
-      <div
-        className="
-          mx-auto max-w-7xl px-4 sm:px-6 lg:px-8
-          grid grid-cols-[auto_1fr_auto] gap-4
-          h-14
-        "
-      >
-        {/* Columna 1: Logo */}
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#fafaf8]/95 backdrop-blur-sm border-b border-[#e8e8e4]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid grid-cols-[auto_1fr_auto] gap-4 h-14">
+
+        {/* Logo */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
             <Image
@@ -34,68 +28,77 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* Columna 2: Centro (buscador + links de navegación) */}
+        {/* Buscador */}
         <div className="flex items-center justify-center">
           <div className="w-full max-w-lg">
             <SearchBox />
           </div>
         </div>
 
-        {/* Columna 3: Acciones (nav secundario + auth + carrito) */}
-        <div className="flex items-center justify-end gap-5 text-gray-700">
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
+        {/* Acciones */}
+        <div className="flex items-center justify-end gap-1 text-[#111110]">
+          <nav className="hidden md:flex items-center gap-1 mr-2">
             {isAuthenticated && userRole === "USER" && (
-              <Link href="/my-orders" className="hover:underline">
+              <Link
+                href="/my-orders"
+                className="text-sm text-[#6b6b67] hover:text-[#111110] hover:bg-[#f4f4f0] px-3 py-1.5 rounded-lg transition-colors"
+              >
                 Mis compras
               </Link>
             )}
-            <Link href="/" className="hover:underline">
+            <Link
+              href="/"
+              className="text-sm text-[#6b6b67] hover:text-[#111110] hover:bg-[#f4f4f0] px-3 py-1.5 rounded-lg transition-colors"
+            >
               Tienda
             </Link>
             {isAuthenticated && userRole === "ADMIN" && (
-              <Link href="/admin" className="hover:underline">
+              <Link
+                href="/admin"
+                className="text-sm text-[#6b6b67] hover:text-[#111110] hover:bg-[#f4f4f0] px-3 py-1.5 rounded-lg transition-colors"
+              >
                 Panel Admin
               </Link>
             )}
           </nav>
 
           {!isAuthenticated ? (
-            <Link href="/login" className="flex items-center gap-1 hover:underline">
-              <User className="w-5 h-5" />
-              <span className="text-sm hidden sm:inline">Acceso</span>
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 text-sm text-[#6b6b67] hover:text-[#111110] hover:bg-[#f4f4f0] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Acceso</span>
             </Link>
           ) : (
             <>
-              <span className="text-sm hidden sm:inline">Hola, {userFirstName}</span>
+              <span className="text-sm text-[#6b6b67] hidden sm:inline px-2">
+                Hola, {userFirstName}
+              </span>
               <button
                 onClick={logout}
-                className="flex items-center gap-1 hover:underline text-gray-700"
+                className="flex items-center gap-1.5 text-sm text-[#6b6b67] hover:text-[#111110] hover:bg-[#f4f4f0] px-3 py-1.5 rounded-lg transition-colors"
               >
-                <LogOut className="w-5 h-5" />
-                <span className="text-sm hidden sm:inline">Cerrar sesión</span>
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Cerrar sesión</span>
               </button>
             </>
           )}
 
           <Link
             href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              toggleSidebar(true);
-            }}
-            className="flex items-center gap-1 hover:underline"
+            onClick={(e) => { e.preventDefault(); toggleSidebar(true); }}
+            className="flex items-center gap-1.5 bg-[#111110] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#2a2a28] transition-colors ml-1"
           >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-sm hidden sm:inline">${total.toFixed(2)}</span>
+            <ShoppingCart className="w-4 h-4" />
+            <span className="hidden sm:inline">${total.toFixed(2)}</span>
           </Link>
         </div>
       </div>
 
-      {/* Buscador en mobile (opcional): visible bajo el header */}
-      <div className="md:hidden px-4 sm:px-6 lg:px-8 pb-2 pt-2">
-        <div className="w-full">
-          <SearchBox />
-        </div>
+      {/* Mobile search */}
+      <div className="md:hidden px-4 pb-2 pt-1">
+        <SearchBox />
       </div>
     </header>
   );
