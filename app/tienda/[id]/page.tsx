@@ -24,9 +24,23 @@ export default function ProductDetailPage() {
         fetch(`${API_URL}/product/${id}`)
             .then((res) => res.json())
             .then((data: Product) => {
-                setProduct(data);
-                const firstVariant = data.variants?.[0]?.options?.[0]?.value || "";
+                if (!data || !data.id) {
+                    console.error("Invalid product data received");
+                    return;
+                }
+                // Normalizar datos para evitar undefined
+                const normalizedProduct: Product = {
+                    ...data,
+                    images: data.images ?? [],
+                    categories: data.categories ?? [],
+                    variants: data.variants ?? [],
+                };
+                setProduct(normalizedProduct);
+                const firstVariant = normalizedProduct.variants?.[0]?.options?.[0]?.value ?? "";
                 setSelectedVariant(firstVariant);
+            })
+            .catch((error) => {
+                console.error("Error fetching product:", error);
             });
     }, [id]);
 
@@ -39,11 +53,15 @@ export default function ProductDetailPage() {
             id: product.id,
             name: product.name,
             price: product.price,
-            image: product.images[0]?.url || "",
+            image: product.images?.[0]?.url ?? "",
             quantity,
             variant: selectedVariant,
         });
     };
+
+    const images = product.images ?? [];
+    const categories = product.categories ?? [];
+    const variants = product.variants ?? [];
 
     return (
         <div className="container mx-auto px-4 py-10 space-y-8">
@@ -52,9 +70,9 @@ export default function ProductDetailPage() {
                     { label: "Home", href: "/" },
                     { label: "Categorías", href: "/tienda" },
                     {
-                        label: product.categories[0]?.name ?? 'Categoría',
-                        href: product.categories[0]
-                            ? `/tienda?category=${product.categories[0].id}`
+                        label: categories[0]?.name ?? 'Categoría',
+                        href: categories[0]
+                            ? `/tienda?category=${categories[0].id}`
                             : '/tienda',
                     },
                     { label: product.name },
@@ -62,15 +80,15 @@ export default function ProductDetailPage() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                <ImageGallery images={product.images.map((img) => img.url)} />
+                <ImageGallery images={images.map((img) => img.url)} />
 
                 <div className="bg-white border rounded-lg shadow-sm p-6 space-y-4">
                     <h1 className="text-2xl font-bold">{product.name}</h1>
                     <p className="text-xl text-gray-700">${product.price.toFixed(2)}</p>
 
-                    {product.variants && (
+                    {variants.length > 0 && (
                         <VariantSelector
-                            variants={product.variants}
+                            variants={variants}
                             selected={selectedVariant}
                             onSelect={setSelectedVariant}
                         />
