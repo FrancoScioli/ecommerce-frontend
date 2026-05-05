@@ -15,12 +15,16 @@ interface Sale {
   shippingAddress: string | null
   postalCode: string | null
   shippingCost: number | null
+  customerName: string | null
+  customerEmail: string | null
+  customerPhone: string | null
   user: {
     id: number
     email: string
     phone: string | null
-  }
+  } | null
   saleProducts: {
+    variant: string | null
     product: {
       id: number
       name: string
@@ -29,15 +33,19 @@ interface Sale {
   }[]
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL
+
 export default function AdminSalesPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null)
+  const [salesEmail, setSalesEmail] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
   const fetchWithRefresh = useFetchWithRefresh()
 
   useEffect(() => {
     const fetchSales = async () => {
       try {
-        const res = await fetchWithRefresh(`${process.env.NEXT_PUBLIC_API_URL}/sales`)
+        const res = await fetchWithRefresh(`${API}/sales`)
         if (!res.ok) throw new Error('Error al cargar las ventas')
         const data: Sale[] = await res.json()
         setSales(data)
@@ -47,8 +55,36 @@ export default function AdminSalesPage() {
       }
     }
 
+    const fetchConfig = async () => {
+      try {
+        const res = await fetchWithRefresh(`${API}/pricing-config`)
+        if (!res.ok) return
+        const data = await res.json()
+        setSalesEmail(data.salesEmail ?? '')
+      } catch {}
+    }
+
     fetchSales()
+    fetchConfig()
   }, [fetchWithRefresh])
+
+  const handleSaveEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      setSavingEmail(true)
+      const res = await fetchWithRefresh(`${API}/pricing-config`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salesEmail }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Email guardado')
+    } catch {
+      toast.error('Error al guardar el email')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
 
   const toggleDetails = (id: number) => {
     setExpandedSaleId(prev => (prev === id ? null : id))
@@ -84,6 +120,30 @@ export default function AdminSalesPage() {
     <section className="container mx-auto px-4 py-10 space-y-6">
       <h1 className="text-2xl font-bold">Ventas</h1>
 
+      {/* Email para envío de pedidos */}
+      <div className="bg-white p-5 rounded-lg shadow max-w-lg">
+        <h2 className="text-base font-semibold mb-3">Mail para envío de pedidos</h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Al recibir un pedido, se enviará una copia a esta dirección de correo.
+        </p>
+        <form onSubmit={handleSaveEmail} className="flex gap-2">
+          <input
+            type="email"
+            value={salesEmail}
+            onChange={(e) => setSalesEmail(e.target.value)}
+            placeholder="ventas@7m-merchandising.com"
+            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          />
+          <button
+            type="submit"
+            disabled={savingEmail}
+            className="px-4 py-2 bg-black text-white text-sm rounded-md disabled:opacity-60"
+          >
+            {savingEmail ? 'Guardando…' : 'Guardar'}
+          </button>
+        </form>
+      </div>
+
       {sales.length === 0 ? (
         <p className="text-center text-gray-500">No hay ventas registradas.</p>
       ) : (
@@ -116,39 +176,57 @@ export default function AdminSalesPage() {
                   <div className="mt-4 space-y-2 text-sm text-gray-800">
                     <p className="font-semibold">📦 Productos:</p>
                     <ul className="list-disc list-inside ml-4">
-                      {sale.saleProducts.map((sp, idx) => (
+                      {Object.values(
+                        sale.saleProducts.reduce<Record<string, { name: string; variant: string | null; price: number; qty: number }>>(
+                          (acc, sp) => {
+                            const key = `${sp.product.id}__${sp.variant ?? ''}`
+                            if (acc[key]) {
+                              acc[key].qty++
+                            } else {
+                              acc[key] = { name: sp.product.name, variant: sp.variant, price: sp.product.price, qty: 1 }
+                            }
+                            return acc
+                          },
+                          {}
+                        )
+                      ).map((g, idx) => (
                         <li key={idx}>
-                          {sp.product.name} - ${sp.product.price.toFixed(2)}
+                          {g.name}
+                          {g.variant && (
+                            <span className="text-gray-500 ml-1">({g.variant})</span>
+                          )}
+                          {' '}- Cant. {g.qty} - Un. ${g.price.toFixed(2)} - Total: ${(g.price * g.qty).toFixed(2)}
                         </li>
                       ))}
                     </ul>
 
                     <p className="font-semibold mt-4">👤 Contacto del comprador:</p>
                     <div className="flex flex-col gap-1 ml-4">
-                      {sale.user.phone && (
+                      {/* Pedido guest (nuevo flujo) */}
+                      {sale.customerName && (
+                        <p className="text-gray-700">{sale.customerName}</p>
+                      )}
+                      {(sale.customerPhone ?? sale.user?.phone) && (
                         <a
-                          href={buildWhatsAppLink(sale.user.phone, items)}
+                          href={buildWhatsAppLink((sale.customerPhone ?? sale.user?.phone)!, items)}
                           className="flex items-center gap-2 text-green-600 hover:underline"
                           target="_blank"
                           rel="noopener noreferrer"
                         >
                           <FaWhatsapp />
-                          {sale.user.phone}
+                          {sale.customerPhone ?? sale.user?.phone}
                         </a>
                       )}
-                      <a
-                        href={buildMailToLink(sale.user.email, items)}
-                        className="flex items-center gap-2 text-blue-700 hover:underline"
-                      >
-                        <FiMail />
-                        {sale.user.email}
-                      </a>
+                      {(sale.customerEmail ?? sale.user?.email) && (
+                        <a
+                          href={buildMailToLink((sale.customerEmail ?? sale.user?.email)!, items)}
+                          className="flex items-center gap-2 text-blue-700 hover:underline"
+                        >
+                          <FiMail />
+                          {sale.customerEmail ?? sale.user?.email}
+                        </a>
+                      )}
                     </div>
-                    <p className="font-semibold mt-4">🏠 Dirección de envío:</p>
-                    <p className="ml-4 text-gray-700">
-                      {sale.shippingAddress ?? 'Retiro en local'}
-                      {sale.postalCode && ` — CP ${sale.postalCode}`}
-                    </p>
                   </div>
                 )}
               </div>

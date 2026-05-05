@@ -2,177 +2,113 @@
 
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
-import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { useState, useEffect } from 'react'
 import { toast } from 'react-toastify'
 import Image from 'next/image'
-import { secureCreateSale } from '@/services/sales'
-import { usePlacesAutocomplete } from '@/hooks/usePlacesAutocomplete'
+import Link from 'next/link'
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function CheckoutPage() {
   const router = useRouter()
   const { cart, clearCart } = useCart()
-  const { userEmail, userId } = useAuth()
+  const { isAuthenticated, userFirstName, userLastName, userEmail, userRole } = useAuth()
 
+  const [nombre, setNombre] = useState('')
+  const [email, setEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'shipping'>('shipping')
-  const [shippingCost, setShippingCost] = useState<number | null>(null)
-
-  const {
-    inputValue,
-    address,
-    postalCode,
-    suggestions,
-    handleInputChange,
-    handleSelectSuggestion,
-  } = usePlacesAutocomplete()
-
-  const totalCart = cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
-  const estimatedTotal =
-    deliveryMethod === 'shipping' && shippingCost !== null
-      ? totalCart + shippingCost
-      : totalCart
 
   useEffect(() => {
-    const fetchShippingCost = async () => {
-      try {
-        if (deliveryMethod === 'shipping' && address) {
-          const resp = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/shipping/estimate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, postalCode: postalCode || undefined }),
-          })
-          const data = await resp.json()
-          if (data.cost !== undefined) {
-            setShippingCost(data.cost)
-          } else {
-            setShippingCost(null)
-          }
-        } else {
-          setShippingCost(null)
-        }
-      } catch {
-        toast.error('Error al estimar el costo de envío')
-        setShippingCost(null)
-      }
+    if (isAuthenticated) {
+      setNombre(`${userFirstName ?? ''} ${userLastName ?? ''}`.trim())
+      setEmail(userEmail ?? '')
     }
-    fetchShippingCost()
-  }, [address, postalCode, deliveryMethod])
+  }, [isAuthenticated, userFirstName, userLastName, userEmail])
 
-  const handleTransfer = async () => {
+  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
+
+  const handleRealizarPedido = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!nombre.trim() || !email.trim() || !telefono.trim()) {
+      toast.error('Completá todos los campos antes de continuar')
+      return
+    }
+    if (cart.length === 0) {
+      toast.error('El carrito está vacío')
+      return
+    }
+
     setIsLoading(true)
     try {
-      if (deliveryMethod === 'shipping' && !address) {
-        toast.error('Debés seleccionar una dirección de envío antes de continuar')
-        setIsLoading(false)
-        return
-      }
-      const token = localStorage.getItem('accessToken')!
-      const res = await secureCreateSale(token, {
-        userId: userId!,
-        productIds: cart.map((i) => i.id),
-        deliveryMethod,
-        shippingAddress: deliveryMethod === 'shipping' ? address : undefined,
-        postalCode: deliveryMethod === 'shipping' ? postalCode : undefined,
-      })
-
-      localStorage.setItem('justPurchased', 'true')
-      localStorage.setItem('transferTotal', res.total.toString())
-      toast.success('Compra registrada')
-      router.push('/payment-transfer')
-    } catch {
-      toast.error('Error al registrar la compra')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleMercadoPago = async () => {
-    setIsLoading(true)
-    try {
-      if (deliveryMethod === 'shipping' && !address) {
-        toast.error('Debés seleccionar una dirección antes de continuar')
-        setIsLoading(false)
-        return
-      }
-      const token = localStorage.getItem('accessToken')!
-      const res = await secureCreateSale(token, {
-        userId: userId!,
-        productIds: cart.map((i) => i.id),
-        deliveryMethod,
-        shippingAddress: deliveryMethod === 'shipping' ? address : undefined,
-        postalCode: deliveryMethod === 'shipping' ? postalCode : undefined,
-      })
-
-      const resp = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/create-preference`, {
+      const res = await fetch(`${API}/sales/place-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: userEmail,
-          cart: cart.map((item) => ({
-            id: String(item.id),
-            title: item.name,
+          customerName: nombre.trim(),
+          customerEmail: email.trim(),
+          customerPhone: telefono.trim(),
+          items: cart.map((item) => ({
+            productId: item.id,
             quantity: item.quantity,
-            unit_price: item.price,
+            variant: item.variant,
           })),
-          total: res.total,
         }),
       })
 
-      const data = await resp.json()
-      if (data.url) {
-        clearCart()
-        window.location.href = data.url
-      } else {
-        toast.error('No se pudo iniciar pago con Mercado Pago.')
-      }
+      if (!res.ok) throw new Error()
+
+      clearCart()
+      toast.success('¡Pedido realizado! Te enviaremos un email con el resumen.')
+      router.push('/')
     } catch {
-      toast.error('Error al procesar con Mercado Pago')
+      toast.error('Error al realizar el pedido. Intentá nuevamente.')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Finalizar compra</h1>
+    <div className="container mx-auto px-4 py-10 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-3 tracking-wide">FINALIZAR PEDIDO</h1>
+      <p className="text-sm text-gray-600 mb-8 border-l-4 border-gray-300 pl-3">
+        Una vez confirmado el pedido, nos pondremos en contacto con usted para coordinar
+        método de pago y envío, el cual se cotizará por separado.
+      </p>
 
-      <h2 className="mb-2">Método de entrega</h2>
-      <select
-        value={deliveryMethod}
-        onChange={(e) => setDeliveryMethod(e.target.value as 'pickup' | 'shipping')}
-        className="border p-2 rounded mb-4"
-      >
-        {/* <option value="pickup">Retiro en local</option> */}
-        <option value="shipping">Envío a domicilio</option>
-      </select>
+      {/* Sección de autenticación */}
+      {!isAuthenticated ? (
+        <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm font-medium text-gray-700 mb-3">
+            ¿Tenés una cuenta? Iniciá sesión para agilizar el proceso.
+          </p>
+          <div className="flex gap-3">
+            <Link
+              href="/login?redirect=/checkout"
+              className="px-4 py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800 transition"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/register?redirect=/checkout"
+              className="px-4 py-2 border border-gray-300 text-sm rounded-md hover:bg-gray-100 transition"
+            >
+              Crear cuenta
+            </Link>
+          </div>
+          <p className="text-xs text-gray-400 mt-3">O completá tus datos abajo para continuar como invitado.</p>
+        </div>
+      ) : userRole !== 'ADMIN' ? (
+        <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+          Comprando como <span className="font-semibold">{userFirstName} {userLastName}</span>. Completá tu teléfono para finalizar.
+        </div>
+      ) : null}
 
-      {deliveryMethod === 'shipping' && (
-        <>
-          <input
-            className="border p-2 rounded w-full mb-2"
-            placeholder="Dirección"
-            value={inputValue}
-            onChange={(e) => handleInputChange(e.target.value)}
-          />
-          {suggestions.length > 0 && (
-            <ul className="border bg-white rounded shadow mb-2 max-h-40 overflow-y-auto">
-              {suggestions.map((sug, idx) => (
-                <li
-                  key={idx}
-                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => handleSelectSuggestion(sug)}
-                >
-                  {sug.description}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">Resumen de productos</h2>
+      {/* Resumen de productos */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Resumen de productos</h2>
         <ul className="space-y-3">
           {cart.map((item) => (
             <li
@@ -197,37 +133,63 @@ export default function CheckoutPage() {
                   </p>
                 </div>
               </div>
-              <p className="text-sm font-semibold">
-                ${(item.price * item.quantity).toFixed(2)}
-              </p>
+              <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
             </li>
           ))}
         </ul>
+        <div className="text-right mt-4">
+          <p className="text-lg font-semibold">Total: ${total.toFixed(2)}</p>
+        </div>
       </div>
 
-      <div className="text-right mt-4 mb-8">
-        {deliveryMethod === 'shipping' && shippingCost !== null && (
-          <p className="text-sm text-gray-600">Envío: ${shippingCost.toFixed(2)}</p>
-        )}
-        <p className="text-lg font-semibold">Total: ${estimatedTotal.toFixed(2)}</p>
-      </div>
+      {/* Datos de contacto */}
+      <form onSubmit={handleRealizarPedido} className="space-y-4">
+        <h2 className="text-lg font-semibold">Datos de contacto</h2>
 
-      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Nombre completo</label>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            placeholder="Juan Pérez"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            placeholder="juan@ejemplo.com"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Teléfono</label>
+          <input
+            type="tel"
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            placeholder="+54 11 1234-5678"
+          />
+        </div>
+
         <button
-          onClick={handleMercadoPago}
-          disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded disabled:opacity-50"
+          type="submit"
+          disabled={isLoading || cart.length === 0}
+          className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded-md text-sm font-semibold disabled:opacity-50 mt-2"
         >
-          {isLoading ? 'Redirigiendo...' : 'Pagar con Mercado Pago'}
+          {isLoading ? 'Enviando pedido…' : 'Realizar Pedido'}
         </button>
-        <button
-          onClick={handleTransfer}
-          disabled={isLoading}
-          className="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 rounded"
-        >
-          {isLoading ? 'Procesando...' : 'Transferencia Bancaria'}
-        </button>
-      </div>
+      </form>
     </div>
   )
 }

@@ -11,8 +11,8 @@ interface Variant {
 
 interface VariantSelectorProps {
   variants: Variant[];
-  selected: string;
-  onSelect: (value: string) => void;
+  selected: Record<number, string>;
+  onSelect: (variantId: number, value: string) => void;
 }
 
 export default function VariantSelector({
@@ -29,8 +29,8 @@ export default function VariantSelector({
           <label className="block text-sm font-medium text-gray-700 mb-1">{variant.name}</label>
           <select
             className="border px-3 py-2 rounded w-full"
-            value={selected}
-            onChange={(e) => onSelect(e.target.value)}
+            value={selected[variant.id] ?? ""}
+            onChange={(e) => onSelect(variant.id, e.target.value)}
           >
             <option value="">Elegí una opción</option>
             {variant.options.map((opt) => (
@@ -44,4 +44,3 @@ export default function VariantSelector({
     </div>
   );
 }
-    

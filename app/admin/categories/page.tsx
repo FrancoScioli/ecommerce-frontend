@@ -1,98 +1,128 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFetchWithRefresh } from "@/hooks/useFetchWithRefresh";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
-
 import { CategoryCard } from "@/components/CategoryCard";
 import Spinner from "@/components/ui/Spinner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Category } from "@/types/Category";
 import CategoryForm from "@/components/admin/CategoryForm";
 import { toast } from "react-toastify";
-
-const TEXT_TITLE = "Administrar Categorías";
-const TEXT_LIST_TITLE = "Listado de Categorías";
-const TEXT_ERROR = "Error al cargar las categorías.";
-const TEXT_EMPTY = "No hay categorías disponibles.";
-const TEXT_DELETE_MODAL_TITLE = "Confirmar eliminación";
-const TEXT_DELETE_MODAL_CONFIRM = "Eliminar";
-const TEXT_DELETE_MODAL_CANCEL = "Cancelar";
-const TEXT_DELETE_SUCCESS = "Categoría eliminada correctamente.";
-const TEXT_DELETE_ERROR =
-  "No se pudo eliminar. Asegúrate de no tener productos asociados.";
+import { Lock } from "lucide-react";
 
 export default function AdminCategoriesPage() {
   const fetchWithRefresh = useFetchWithRefresh();
-  const [modalMessage, setModalMessage] = useState<string | null>(null);
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
-    null
-  );
+  const formRef = useRef<HTMLDivElement>(null);
 
-  const {
-    data: categories,
-    isLoading,
-    isError,
-    mutate,
-  } = useAuthFetch<Category[]>(
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [search, setSearch] = useState("");
+
+  const { data: categories, isLoading, isError, mutate } = useAuthFetch<Category[]>(
     `${process.env.NEXT_PUBLIC_API_URL}/category`
   );
 
   if (isLoading) return <Spinner />;
-  if (isError) return <p className="text-red-500 text-center mt-10">{TEXT_ERROR}</p>;
+  if (isError) return <p className="text-red-500 text-center mt-10">Error al cargar las categorías.</p>;
+
+  const handleEdit = (cat: Category) => {
+    setEditingCategory(cat);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
+  const handleCancelEdit = () => setEditingCategory(null);
 
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
     try {
       const res = await fetchWithRefresh(
         `${process.env.NEXT_PUBLIC_API_URL}/category/${categoryToDelete.id}`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
       if (!res.ok) throw new Error();
-      toast.success(TEXT_DELETE_SUCCESS);
+      toast.success("Categoría eliminada correctamente.");
       setCategoryToDelete(null);
       mutate();
     } catch {
-      toast.error(TEXT_DELETE_ERROR);
+      toast.error("No se pudo eliminar. Asegurate de no tener productos asociados.");
       setCategoryToDelete(null);
     }
   };
 
-  const cancelDelete = () => {
-    setCategoryToDelete(null);
-    setModalMessage(null);
-  };
+  const filtered = (categories ?? []).filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <section className="container mx-auto px-4 py-10 space-y-8">
-      <h1 className="text-2xl font-bold">{TEXT_TITLE}</h1>
+      <h1 className="text-2xl font-bold">Administrar Categorías</h1>
 
-      {/* Formulario para crear nuevas categorías */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <CategoryForm onSuccess={() => mutate()} />
+      {/* Formulario crear / editar */}
+      <div ref={formRef} className="bg-white p-6 rounded-lg shadow">
+        <CategoryForm
+          mode={editingCategory ? "edit" : "create"}
+          initialValues={editingCategory ?? undefined}
+          onCancelEdit={handleCancelEdit}
+          onSuccess={() => {
+            setEditingCategory(null);
+            mutate();
+          }}
+        />
       </div>
 
-      <h2 className="text-xl font-semibold">{TEXT_LIST_TITLE}</h2>
+      {/* Buscador */}
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold">Listado de Categorías</h2>
+        <input
+          type="text"
+          placeholder="Buscar categoría..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="ml-auto border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-black"
+        />
+      </div>
 
-      {!categories || categories.length === 0 ? (
-        <p className="text-center mt-10">{TEXT_EMPTY}</p>
+      {filtered.length === 0 ? (
+        <p className="text-center mt-10 text-gray-500">
+          {search ? "Sin resultados para esa búsqueda." : "No hay categorías disponibles."}
+        </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {categories.map((cat) => (
+          {filtered.map((cat) => (
             <div key={cat.id} className="relative">
               <CategoryCard {...cat} />
-              <button
-                onClick={() => {
-                  setModalMessage(`¿Eliminar categoría "${cat.name}"?`)
-                  setCategoryToDelete(cat)
-                }
-                }
-                className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600"
-              >
-                Eliminar
-              </button>
+
+              {/* Badges de lock */}
+              {(cat.lockName || cat.lockImage) && (
+                <div className="absolute top-2 left-2 flex gap-1">
+                  {cat.lockName && (
+                    <span className="flex items-center gap-0.5 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
+                      <Lock className="w-2.5 h-2.5" /> Nombre
+                    </span>
+                  )}
+                  {cat.lockImage && (
+                    <span className="flex items-center gap-0.5 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
+                      <Lock className="w-2.5 h-2.5" /> Imagen
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="absolute top-2 right-2 flex gap-1">
+                <button
+                  onClick={() => handleEdit(cat)}
+                  className="bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-700"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => setCategoryToDelete(cat)}
+                  className="bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -101,12 +131,12 @@ export default function AdminCategoriesPage() {
       {categoryToDelete && (
         <ConfirmationModal
           open={Boolean(categoryToDelete)}
-          title={TEXT_DELETE_MODAL_TITLE}
-          message={modalMessage || ""}
-          confirmText={TEXT_DELETE_MODAL_CONFIRM}
-          cancelText={TEXT_DELETE_MODAL_CANCEL}
+          title="Confirmar eliminación"
+          message={`¿Eliminar categoría "${categoryToDelete.name}"?`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
           onConfirm={confirmDelete}
-          onCancel={cancelDelete}
+          onCancel={() => setCategoryToDelete(null)}
         />
       )}
     </section>

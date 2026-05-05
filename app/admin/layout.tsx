@@ -45,38 +45,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             Inicio
           </Link>
           <Link
-            href="/admin/categories"
-            className={`hover:underline ${pathname.startsWith("/admin/categories") ? "font-bold" : ""
-              }`}
-          >
-            Categorías
-          </Link>
-          <Link
-            href="/admin/products"
-            className={`hover:underline ${pathname.startsWith("/admin/products") ? "font-bold" : ""
-              }`}
-          >
-            Productos
-          </Link>
-          <Link
-            href="/admin/carousel"
-            className={`hover:underline ${pathname.startsWith("/admin/carousel") ? "font-bold" : ""
-              }`}
-          >
-            Carousel principal
-          </Link>
-          <Link
             href="/admin/users"
-            className={`hover:underline ${pathname.startsWith("/admin/users") ? "font-bold" : ""
-              }`}
+            className={`hover:underline ${pathname.startsWith("/admin/users") ? "font-bold" : ""}`}
           >
             Administradores
           </Link>
           <Link
-            href="/admin/sales"
-            className={`hover:underline ${pathname.startsWith("/admin/sales") ? "font-bold" : ""}`}
+            href="/admin/price-markup"
+            className={`hover:underline ${pathname.startsWith("/admin/price-markup") ? "font-bold" : ""}`}
           >
-            Ventas
+            Ajuste de precios
+          </Link>
+          <Link
+            href="/admin/categories"
+            className={`hover:underline ${pathname.startsWith("/admin/categories") ? "font-bold" : ""}`}
+          >
+            Categorías
+          </Link>
+          <Link
+            href="/admin/home"
+            className={`hover:underline ${pathname.startsWith("/admin/home") ? "font-bold" : ""}`}
+          >
+            Home
+          </Link>
+          <Link
+            href="/admin/import"
+            className={`hover:underline ${pathname.startsWith("/admin/import") ? "font-bold" : ""}`}
+          >
+            Importación
           </Link>
           <Link
             href="/admin/integrations"
@@ -85,10 +81,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             Integraciones Zecat
           </Link>
           <Link
-            href="/admin/price-markup"
-            className={`hover:underline ${pathname.startsWith("/admin/price-markup") ? "font-bold" : ""}`}
+            href="/admin/products"
+            className={`hover:underline ${pathname.startsWith("/admin/products") ? "font-bold" : ""}`}
           >
-            Ajuste de precios
+            Productos
+          </Link>
+          <Link
+            href="/admin/sales"
+            className={`hover:underline ${pathname.startsWith("/admin/sales") ? "font-bold" : ""}`}
+          >
+            Ventas
           </Link>
         </nav>
       </aside>

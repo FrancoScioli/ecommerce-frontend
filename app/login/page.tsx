@@ -1,17 +1,21 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { toast } from "react-toastify"
 import { jwtDecode } from "jwt-decode"
 import { JwtPayload } from "@/types/Auth"
+import Link from "next/link"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
 export default function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get("redirect") || "/"
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -34,12 +38,13 @@ export default function LoginPage() {
       const payload: JwtPayload = jwtDecode(accessToken)
 
       login(accessToken, refreshToken)
+      toast.success("¡Bienvenido!")
+
       if (payload.role === "ADMIN") {
         router.push("/admin")
       } else {
-        router.push("/")
+        router.push(redirect)
       }
-      toast.success("¡Bienvenido!")
     } catch {
       toast.error("Credenciales inválidas")
     } finally {
@@ -79,10 +84,13 @@ export default function LoginPage() {
           {loading ? "Cargando..." : "Ingresar"}
         </button>
         <div className="mt-4 text-center">
-          ¿No tienes cuenta?{" "}
-          <a href="/register" className="text-blue-600 hover:underline">
-            Regístrate aquí
-          </a>
+          ¿No tenés cuenta?{" "}
+          <Link
+            href={`/register${redirect !== "/" ? `?redirect=${encodeURIComponent(redirect)}` : ""}`}
+            className="text-blue-600 hover:underline"
+          >
+            Creá una aquí
+          </Link>
         </div>
       </form>
     </div>

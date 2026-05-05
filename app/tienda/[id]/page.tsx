@@ -14,7 +14,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export default function ProductDetailPage() {
     const { id } = useParams();
     const [product, setProduct] = useState<Product | null>(null);
-    const [selectedVariant, setSelectedVariant] = useState<string>("");
+    const [selectedVariants, setSelectedVariants] = useState<Record<number, string>>({});
     const [quantity, setQuantity] = useState<number>(1);
 
     const { addToCart } = useCart();
@@ -25,8 +25,11 @@ export default function ProductDetailPage() {
             .then((res) => res.json())
             .then((data: Product) => {
                 setProduct(data);
-                const firstVariant = data.variants?.[0]?.options?.[0]?.value || "";
-                setSelectedVariant(firstVariant);
+                const initialSelections: Record<number, string> = {};
+                data.variants?.forEach((v: { id: number }) => {
+                    initialSelections[v.id] = "";
+                });
+                setSelectedVariants(initialSelections);
             });
     }, [id]);
 
@@ -35,13 +38,18 @@ export default function ProductDetailPage() {
     const handleAddToCart = () => {
         if (quantity < 1) return;
 
+        const variantLabel = product.variants
+            ?.map((v: { id: number; name: string }) => `${v.name}: ${selectedVariants[v.id] ?? ""}`)
+            .filter(Boolean)
+            .join(" / ");
+
         addToCart({
             id: product.id,
             name: product.name,
             price: product.price,
             image: product.images[0]?.url || "",
             quantity,
-            variant: selectedVariant,
+            variant: variantLabel || undefined,
         });
     };
 
@@ -50,7 +58,7 @@ export default function ProductDetailPage() {
             <Breadcrumbs
                 path={[
                     { label: "Home", href: "/" },
-                    { label: "Categorías", href: "/tienda" },
+                    { label: "Productos", href: "/tienda" },
                     {
                         label: product.category.name,
                         href: `/tienda?category=${product.category.id}`,
@@ -69,8 +77,10 @@ export default function ProductDetailPage() {
                     {product.variants && (
                         <VariantSelector
                             variants={product.variants}
-                            selected={selectedVariant}
-                            onSelect={setSelectedVariant}
+                            selected={selectedVariants}
+                            onSelect={(variantId, value) =>
+                                setSelectedVariants((prev) => ({ ...prev, [variantId]: value }))
+                            }
                         />
                     )}
 

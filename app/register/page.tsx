@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import ReCAPTCHA from "react-google-recaptcha";
 
@@ -16,6 +16,8 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/";
   const API = process.env.NEXT_PUBLIC_API_URL!;
   const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!;
 
@@ -66,8 +68,11 @@ export default function RegisterPage() {
         return toast.error(err?.message || "Error al registrar");
       }
 
-      toast.success("Registro exitoso. Ya puedes iniciar sesión");
-      router.push("/login");
+      toast.success("Registro exitoso. Iniciá sesión para continuar");
+      const loginUrl = redirect !== "/"
+        ? `/login?redirect=${encodeURIComponent(redirect)}`
+        : "/login"
+      router.push(loginUrl);
     } catch (err) {
       toast.error("Ocurrió un error inesperado");
       console.error(err);

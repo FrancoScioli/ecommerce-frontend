@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFetchWithRefresh } from "@/hooks/useFetchWithRefresh";
 import { useAuthFetch } from "@/hooks/useAuthFetch";
 import { Product } from "@/types/Product";
@@ -22,9 +22,11 @@ const TEXT_DELETE_ERROR = "No se pudo eliminar el producto. Verifica dependencia
 
 export default function AdminProductsPage() {
   const fetchWithRefresh = useFetchWithRefresh();
+  const formRef = useRef<HTMLDivElement>(null);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null); // ⬅️ NEW
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [search, setSearch] = useState("");
 
   const {
     data: products,
@@ -66,7 +68,7 @@ export default function AdminProductsPage() {
       <h1 className="text-2xl font-bold">{TEXT_TITLE}</h1>
 
       {/* Formulario para crear/editar productos */}
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div ref={formRef} className="bg-white p-6 rounded-lg shadow">
         <ProductForm
           mode={editingProduct ? 'edit' : 'create'}
           initialValues={editingProduct ?? undefined}
@@ -78,26 +80,33 @@ export default function AdminProductsPage() {
         />
       </div>
 
-      <h2 className="text-xl font-semibold">{TEXT_LIST_TITLE}</h2>
-
-      {modalMessage && (
-        <div className="p-4 rounded bg-green-100 text-green-800">
-          {modalMessage}
-        </div>
-      )}
+      {/* Buscador */}
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold">{TEXT_LIST_TITLE}</h2>
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="ml-auto border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-black"
+        />
+      </div>
 
       {!products || products.length === 0 ? (
         <p className="text-center mt-10">{TEXT_EMPTY}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {products.map((prod) => (
+          {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map((prod) => (
             <div key={prod.id} className="relative">
               <AdminProductCard {...prod} />
 
               {/* Botón Editar */}
               <div className="absolute top-2 right-2 flex gap-2">
                 <button
-                  onClick={() => setEditingProduct(prod)}
+                  onClick={() => {
+                    setEditingProduct(prod);
+                    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                  }}
                   className="bg-slate-600 text-white px-2 py-1 text-xs rounded hover:bg-slate-700"
                 >
                   Editar
