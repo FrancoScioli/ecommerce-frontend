@@ -2,13 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Product } from "@/types/Product";
+type ProductCardProps = {
+  id: number;
+  name: string;
+  price: number;
+  images: { url: string }[];
+};
 
 function formatPrice(n: number) {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 }
 
-export default function ProductList({ id, name, price, images }: Product) {
+export default function ProductList({ id, name, price, images }: ProductCardProps) {
   const hasImages = images && images.length > 0;
   const cover = hasImages ? images[0].url : null;
   const extra = hasImages ? Math.max(images.length - 1, 0) : 0;
