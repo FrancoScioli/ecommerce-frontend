@@ -95,7 +95,7 @@ export default function DashboardPage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {homeData!.products.map((prod) => (
-              <ProductList key={prod.id} {...prod} />
+              <ProductList key={prod.id} id={prod.id} name={prod.name} price={prod.price} images={prod.images} />
             ))}
           </div>
           <div className="text-center mt-8">
