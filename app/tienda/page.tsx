@@ -16,6 +16,15 @@ interface NavCategory {
   name: string;
 }
 
+interface ProductHit {
+  id: number;
+  name: string;
+  price: number;
+  imageUrl?: string | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
+}
+
 export default function TiendaPage() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<NavCategory[]>([]);
@@ -56,7 +65,7 @@ export default function TiendaPage() {
           );
           if (!res.ok) throw new Error("Error al buscar productos");
           const json = await res.json();
-          data = (json.products ?? []).map((p: any) => ({
+          data = (json.products ?? []).map((p: ProductHit) => ({
             id: p.id,
             name: p.name,
             price: p.price,
@@ -85,7 +94,7 @@ export default function TiendaPage() {
 
     if (selectedCategories.length > 0) {
       result = result.filter(
-        (p) => p.category && selectedCategories.includes((p.category as any).id)
+        (p) => p.category && selectedCategories.includes((p.category as NavCategory).id)
       );
     }
 

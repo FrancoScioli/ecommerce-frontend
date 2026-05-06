@@ -23,7 +23,6 @@ const TEXT_DELETE_ERROR = "No se pudo eliminar el producto. Verifica dependencia
 export default function AdminProductsPage() {
   const fetchWithRefresh = useFetchWithRefresh();
   const formRef = useRef<HTMLDivElement>(null);
-  const [modalMessage, setModalMessage] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
@@ -60,7 +59,6 @@ export default function AdminProductsPage() {
 
   const cancelDelete = () => {
     setProductToDelete(null);
-    setModalMessage(null);
   };
 
   return (

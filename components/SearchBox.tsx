@@ -172,7 +172,6 @@ export default function SearchBox() {
                     placeholder="Buscar productos o categorías…"
                     className="w-full outline-none bg-transparent"
                     aria-autocomplete="list"
-                    aria-expanded={open}
                     aria-controls="search-autocomplete"
                 />
             </div>

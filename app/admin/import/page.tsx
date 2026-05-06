@@ -49,8 +49,8 @@ export default function AdminImportPage() {
       setResult(data);
       if (data.created > 0) toast.success(`${data.created} productos importados ✅`);
       else toast.warn("No se importaron productos. Revisá los errores.");
-    } catch (err: any) {
-      toast.error(err.message || "Error al importar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al importar");
     } finally {
       setLoading(false);
     }
