@@ -53,7 +53,7 @@ export default function ProductDetailPage() {
 
     if (!product) return <Spinner />;
 
-    const printingTypes: PrintingType[] = (product as any).printingTypes ?? [];
+    const printingTypes: PrintingType[] = (product as Product & { printingTypes?: PrintingType[] }).printingTypes ?? [];
 
     const calcPrinting = () => {
         if (!selectedTechnique || printQty < 1) return null;
