@@ -13,7 +13,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 export default function CheckoutPage() {
   const router = useRouter()
   const { cart, clearCart } = useCart()
-  const { isAuthenticated, userId, userFirstName, userLastName, userEmail, userRole } = useAuth()
+  const { isAuthenticated, userId, userFirstName, userLastName, userEmail, userRole, accessToken } = useAuth()
 
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
@@ -21,11 +21,14 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated) {
-      setNombre(`${userFirstName ?? ''} ${userLastName ?? ''}`.trim())
-      setEmail(userEmail ?? '')
-    }
-  }, [isAuthenticated, userFirstName, userLastName, userEmail])
+    if (!isAuthenticated) return
+    setNombre(`${userFirstName ?? ''} ${userLastName ?? ''}`.trim())
+    setEmail(userEmail ?? '')
+    fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.phone) setTelefono(data.phone) })
+      .catch(() => null)
+  }, [isAuthenticated, userFirstName, userLastName, userEmail, accessToken])
 
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
 

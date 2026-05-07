@@ -131,7 +131,9 @@ export default function Navbar() {
             </Link>
           ) : (
             <>
-              <span className="text-sm hidden sm:inline">Hola, {userFirstName}</span>
+              <Link href="/perfil" className="flex items-center gap-1 hover:underline text-sm hidden sm:inline">
+                Hola, {userFirstName}
+              </Link>
               <button
                 onClick={logout}
                 className="flex items-center gap-1 hover:underline text-gray-700"
