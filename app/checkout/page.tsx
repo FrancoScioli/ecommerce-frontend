@@ -13,7 +13,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 export default function CheckoutPage() {
   const router = useRouter()
   const { cart, clearCart } = useCart()
-  const { isAuthenticated, userFirstName, userLastName, userEmail, userRole } = useAuth()
+  const { isAuthenticated, userId, userFirstName, userLastName, userEmail, userRole } = useAuth()
 
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
@@ -50,6 +50,7 @@ export default function CheckoutPage() {
           customerName: nombre.trim(),
           customerEmail: email.trim(),
           customerPhone: telefono.trim(),
+          userId: userId ?? null,
           items: cart.map((item) => ({
             productId: item.id,
             quantity: item.quantity,
