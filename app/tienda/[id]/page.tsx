@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Product } from "@/types/Product";
 import Spinner from "@/components/ui/Spinner";
@@ -28,9 +28,11 @@ export default function ProductDetailPage() {
     const [selectedVariants, setSelectedVariants] = useState<Record<number, string>>({});
     const [quantity, setQuantity] = useState<number>(1);
 
-    // Calculador de personalización
+    const [wantsPersonalization, setWantsPersonalization] = useState(false);
     const [printQty, setPrintQty] = useState<number>(50);
     const [selectedTechnique, setSelectedTechnique] = useState<PrintingType | null>(null);
+
+    const personalizationRef = useRef<HTMLDivElement>(null);
 
     const { addToCart } = useCart();
 
@@ -42,7 +44,6 @@ export default function ProductDetailPage() {
                 setProduct(data);
                 const initialSelections: Record<number, string> = {};
                 data.variants?.forEach((v: { id: number; options: { value: string }[] }) => {
-                    // Preseleccionar si solo hay una opción
                     initialSelections[v.id] = v.options?.length === 1 ? v.options[0].value : "";
                 });
                 setSelectedVariants(initialSelections);
@@ -55,6 +56,7 @@ export default function ProductDetailPage() {
     if (!product) return <Spinner />;
 
     const printingTypes: PrintingType[] = (product as Product & { printingTypes?: PrintingType[] }).printingTypes ?? [];
+    const hasPrinting = printingTypes.length > 0;
 
     const calcPrinting = () => {
         if (!selectedTechnique || printQty < 1) return null;
@@ -65,26 +67,61 @@ export default function ProductDetailPage() {
         const belowMin = qty < selectedTechnique.minUnits;
         const dayFactorCeil = Math.ceil(selectedTechnique.dayFactor * qty);
         const productionDays = selectedTechnique.baseTime + selectedTechnique.occupation + dayFactorCeil;
-        return { unitCost, setupCost, total, belowMin, productionDays };
+        // Total price = (product price × qty) + printing total; unit cart price = total / qty
+        const productSubtotal = product!.price * qty;
+        const grandTotal = productSubtotal + total;
+        const unitCartPrice = Math.round((grandTotal / qty) * 100) / 100;
+        return { unitCost, setupCost, total, belowMin, productionDays, productSubtotal, grandTotal, unitCartPrice };
     };
 
-    const printing = calcPrinting();
+    const printing = wantsPersonalization ? calcPrinting() : null;
+
+    const handleTogglePersonalization = (value: boolean) => {
+        setWantsPersonalization(value);
+        if (value) {
+            setTimeout(() => {
+                personalizationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 50);
+        }
+    };
+
+    const allVariantsSelected = product
+        ? (product.variants ?? []).every((v: { id: number; options: { value: string }[] }) => {
+              const val = selectedVariants[v.id];
+              return val && val.trim() !== "";
+          })
+        : true;
 
     const handleAddToCart = () => {
-        if (quantity < 1) return;
+        const qty = wantsPersonalization ? printQty : quantity;
+        if (qty < 1) return;
+        if (!allVariantsSelected) return;
 
-        const variantLabel = product.variants
-            ?.map((v: { id: number; name: string }) => `${v.name}: ${selectedVariants[v.id] ?? ""}`)
-            .filter(Boolean)
-            .join(" / ");
+        const variantParts = product.variants
+            ?.map((v: { id: number; name: string }) => {
+                const val = selectedVariants[v.id];
+                return val ? `${v.name}: ${val}` : null;
+            })
+            .filter((s): s is string => !!s) ?? [];
+
+        if (wantsPersonalization && selectedTechnique) {
+            variantParts.push(`Personalizado - ${selectedTechnique.name}`);
+        }
+
+        const variantLabel = variantParts.join(" / ") || undefined;
+
+        // When personalized, cart unit price = (product×qty + printing) / qty
+        const cartPrice = wantsPersonalization && printing
+            ? printing.unitCartPrice
+            : product.price;
 
         addToCart({
             id: product.id,
             name: product.name,
-            price: product.price,
+            price: cartPrice,
             image: product.images[0]?.url || "",
-            quantity,
-            variant: variantLabel || undefined,
+            quantity: qty,
+            variant: variantLabel,
         });
     };
 
@@ -119,33 +156,84 @@ export default function ProductDetailPage() {
                         />
                     )}
 
-                    <div className="flex items-center gap-3">
-                        <label htmlFor="quantity" className="text-sm text-gray-600">
-                            Cantidad:
-                        </label>
-                        <input
-                            type="number"
-                            id="quantity"
-                            value={quantity}
-                            min={1}
-                            max={999}
-                            onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                            className="w-20 px-2 py-1 border rounded text-center"
-                        />
-                    </div>
+                    {/* Personalización toggle — only when printing types exist */}
+                    {hasPrinting && (
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700">¿Deseás personalización?</label>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleTogglePersonalization(false)}
+                                    className={`px-4 py-1.5 rounded border text-sm font-medium transition-colors ${
+                                        !wantsPersonalization
+                                            ? "bg-blue-600 text-white border-blue-600"
+                                            : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                    }`}
+                                >
+                                    No
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleTogglePersonalization(true)}
+                                    className={`px-4 py-1.5 rounded border text-sm font-medium transition-colors ${
+                                        wantsPersonalization
+                                            ? "bg-blue-600 text-white border-blue-600"
+                                            : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                    }`}
+                                >
+                                    Sí
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Normal quantity — hidden when personalization is active */}
+                    {!wantsPersonalization && (
+                        <div className="flex items-center gap-3">
+                            <label htmlFor="quantity" className="text-sm text-gray-600">
+                                Cantidad:
+                            </label>
+                            <input
+                                type="number"
+                                id="quantity"
+                                value={quantity}
+                                min={1}
+                                max={999}
+                                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                                className="w-20 px-2 py-1 border rounded text-center"
+                            />
+                        </div>
+                    )}
+
+                    {/* Price summary when personalized */}
+                    {wantsPersonalization && printing && (
+                        <div className="text-sm text-gray-700 bg-blue-50 border border-blue-200 rounded p-3 space-y-0.5">
+                            <p className="font-semibold text-gray-900">Resumen de precio personalizado:</p>
+                            <p>Productos ({printQty} u.): <span className="font-medium">${printing.productSubtotal.toFixed(2)}</span></p>
+                            <p>Impresión total: <span className="font-medium">${printing.total.toFixed(2)}</span></p>
+                            <p className="font-bold text-blue-700 pt-1 border-t border-blue-200">
+                                Total: ${printing.grandTotal.toFixed(2)} ({printQty} u. × ${printing.unitCartPrice.toFixed(2)}/u.)
+                            </p>
+                        </div>
+                    )}
 
                     <button
                         onClick={handleAddToCart}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                        disabled={!allVariantsSelected}
+                        className={`px-4 py-2 rounded text-white font-medium transition-colors ${
+                            allVariantsSelected
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "bg-gray-300 cursor-not-allowed"
+                        }`}
                     >
-                        Agregar al carrito
+                        {allVariantsSelected ? "Agregar al carrito" : "Seleccioná todas las opciones"}
                     </button>
                 </div>
             </div>
 
-            {/* Calculador de personalización */}
-            {printingTypes.length > 0 && (
-                <div className="bg-white border rounded-lg p-6 space-y-5">
+            {/* Personalización section — visible only when toggled on */}
+            {hasPrinting && wantsPersonalization && (
+                <div ref={personalizationRef} className="bg-white border rounded-lg p-6 space-y-5">
                     <h2 className="text-lg font-semibold">Personalización con logo</h2>
                     <p className="text-sm text-gray-500">
                         Calculá el costo estimado de agregar tu logo a este producto según la técnica y la cantidad.
@@ -203,7 +291,7 @@ export default function ProductDetailPage() {
                                 <span className="font-medium">{printing.productionDays} día{printing.productionDays !== 1 ? "s" : ""}</span>
                             </div>
                             <p className="text-xs text-gray-400 pt-1">
-                                * Los precios de personalización no incluyen el costo del producto. Consultá con nosotros para confirmar disponibilidad y precio final.
+                                * Una vez confirmado el pedido, nos pondremos en contacto para solicitar los archivos del logo.
                             </p>
                         </div>
                     )}

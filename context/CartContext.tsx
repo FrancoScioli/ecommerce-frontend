@@ -50,8 +50,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!cartLoaded) return;
     localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
+  }, [cart, cartLoaded]);
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {

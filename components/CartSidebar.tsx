@@ -60,7 +60,7 @@ export default function CartSidebar() {
                       <p className="text-sm text-gray-500">{item.variant}</p>
                     )}
                     <p className="text-sm">
-                      x{item.quantity} – ${item.price * item.quantity}
+                      x{item.quantity} – ${(Math.round(item.price * item.quantity * 100) / 100).toFixed(2)}
                     </p>
                   </div>
 
