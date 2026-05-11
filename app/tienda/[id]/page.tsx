@@ -41,8 +41,9 @@ export default function ProductDetailPage() {
             .then((data: Product & { printingTypes?: PrintingType[] }) => {
                 setProduct(data);
                 const initialSelections: Record<number, string> = {};
-                data.variants?.forEach((v: { id: number }) => {
-                    initialSelections[v.id] = "";
+                data.variants?.forEach((v: { id: number; options: { value: string }[] }) => {
+                    // Preseleccionar si solo hay una opción
+                    initialSelections[v.id] = v.options?.length === 1 ? v.options[0].value : "";
                 });
                 setSelectedVariants(initialSelections);
                 if (data.printingTypes?.length) {
