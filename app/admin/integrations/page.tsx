@@ -101,17 +101,10 @@ export default function IntegrationsPage() {
         <div className="flex gap-3 flex-wrap">
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded text-sm disabled:opacity-60"
-            onClick={() => triggerSync('all')}
-            disabled={syncing}
-          >
-            {syncing ? 'Sincronizando…' : 'Sincronizar todo'}
-          </button>
-          <button
-            className="px-4 py-2 bg-slate-100 rounded text-sm disabled:opacity-60"
             onClick={() => triggerSync('categories')}
             disabled={syncing}
           >
-            Solo categorías
+            {syncing ? 'Sincronizando…' : 'Solo categorías'}
           </button>
           <button
             className="px-4 py-2 bg-slate-100 rounded text-sm disabled:opacity-60"
@@ -119,13 +112,6 @@ export default function IntegrationsPage() {
             disabled={syncing}
           >
             Categorías + Productos
-          </button>
-          <button
-            className="px-4 py-2 bg-slate-100 rounded text-sm disabled:opacity-60"
-            onClick={() => triggerSync('products')}
-            disabled={syncing}
-          >
-            Personalización (completo)
           </button>
         </div>
       </div>
