@@ -44,7 +44,7 @@ export default function IntegrationsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const triggerSync = async (scope: 'categories' | 'fast') => {
+  const triggerSync = async (scope: 'categories' | 'fast' | 'products' | 'all') => {
     try {
       setSyncing(true)
       const res = await fetchWithRefresh(`${API_BASE}/admin/zecat/sync?scope=${scope}`, {
@@ -127,7 +127,14 @@ export default function IntegrationsPage() {
             onClick={() => triggerSync('fast')}
             disabled={syncing}
           >
-            Categorías + Productos
+            {syncing ? 'Sincronizando…' : 'Categorías + Productos (rápido)'}
+          </button>
+          <button
+            className="px-4 py-2 bg-slate-700 text-white rounded text-sm disabled:opacity-60"
+            onClick={() => triggerSync('all')}
+            disabled={syncing}
+          >
+            {syncing ? 'Sincronizando…' : 'Sync completo (variantes + personalización)'}
           </button>
         </div>
       </div>
