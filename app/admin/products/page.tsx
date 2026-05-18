@@ -32,7 +32,7 @@ export default function AdminProductsPage() {
     isLoading,
     isError,
     mutate,
-  } = useAuthFetch<Product[]>(`${process.env.NEXT_PUBLIC_API_URL}/product`);
+  } = useAuthFetch<Product[]>(`${process.env.NEXT_PUBLIC_API_URL}/product/admin/all`);
 
   if (isLoading) return <Spinner />;
   if (isError)

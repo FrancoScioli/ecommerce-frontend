@@ -22,7 +22,6 @@ interface ProductFormProps {
   onCancelEdit?: () => void
 }
 
-
 function hasCategoryId(p: unknown): p is { categoryId: number } {
   return typeof (p as { categoryId?: unknown })?.categoryId === "number"
 }
@@ -31,8 +30,6 @@ function hasCategoryObj(p: unknown): p is { category: { id: number } } {
   const cat = (p as { category?: unknown })?.category
   return typeof (cat as { id?: unknown })?.id === "number"
 }
-
-// Normalizo las variantes a variantInput
 
 type RawOption = string | { value?: unknown }
 type RawVariant = { name?: unknown; options?: unknown }
@@ -50,8 +47,6 @@ function extractOptionValue(opt: RawOption): string | null {
 function normalizeVariant(v: unknown): VariantInput {
   const rv = (v ?? {}) as RawVariant
   const name = typeof rv.name === "string" ? rv.name : ""
-
-  // options puede ser string[], ( {value:string}|string )[], o cualquier cosa
   const optionsRaw = rv.options
   let options: string[] = []
   if (Array.isArray(optionsRaw)) {
@@ -64,7 +59,6 @@ function normalizeVariant(v: unknown): VariantInput {
   } else if (isStringArray(optionsRaw)) {
     options = optionsRaw.map((s) => s.trim()).filter(Boolean)
   }
-
   return { name, options, inputValue: "" }
 }
 
@@ -85,24 +79,26 @@ export default function ProductForm({
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [categoryId, setCategoryId] = useState<number | "">("")
+  const [isActive, setIsActive] = useState(true)
   const [images, setImages] = useState<File[]>([])
   const [variants, setVariants] = useState<VariantInput[]>([])
   const [allCategories, setAllCategories] = useState<Category[]>([])
   const [loadingCats, setLoadingCats] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  // coverImageId: id de la imagen existente seleccionada como portada
+  const [coverImageId, setCoverImageId] = useState<number | null>(null)
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
   const fetchWithRefresh = useFetchWithRefresh()
 
-  // Cargar categorías
+  const isZecat = initialValues?.source === "ZECAT"
+
   useEffect(() => {
     async function fetchCategories() {
       try {
         const res = await fetchWithRefresh(`${API}/category`)
         const data: Category[] = await res.json()
         setAllCategories(data)
-
-        // Preselección de categoría
         if (mode === "edit" && initialValues) {
           const incomingCatId = getIncomingCategoryId(initialValues)
           setCategoryId(incomingCatId || (data[0]?.id ?? ""))
@@ -118,16 +114,16 @@ export default function ProductForm({
     fetchCategories()
   }, [API, fetchWithRefresh, mode, initialValues])
 
-  // Cargar valores del producto cuando entramos en modo edición
   useEffect(() => {
     if (mode !== "edit" || !initialValues) {
-      // limpiar si venimos de editar a crear
       if (mode === "create") {
         setName("")
         setDescription("")
         setPrice("")
+        setIsActive(true)
         setImages([])
         setVariants([])
+        setCoverImageId(null)
       }
       return
     }
@@ -139,15 +135,14 @@ export default function ProductForm({
     if (typeof p === "number") priceStr = String(p)
     else if (typeof p === "string") priceStr = p
     setPrice(priceStr)
+    setIsActive(initialValues.isActive !== false)
+    setCoverImageId(initialValues.coverImageId ?? null)
 
-    // Variants → transformar a VariantInput sin any
     const rawVariants = (initialValues as { variants?: unknown })?.variants
     const normalized: VariantInput[] = Array.isArray(rawVariants)
       ? (rawVariants as unknown[]).map(normalizeVariant)
       : []
     setVariants(normalized)
-
-    // en edición, si no elige imágenes nuevas, no toca las actuales
     setImages([])
   }, [mode, initialValues])
 
@@ -202,7 +197,6 @@ export default function ProductForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    // Validaciones
     if (!name || !description || !price || !categoryId) return toast.error("Faltan datos obligatorios")
 
     const parsedPrice = parseFloat(price)
@@ -210,12 +204,13 @@ export default function ProductForm({
 
     if (mode === "create" && images.length === 0) return toast.error("Debes subir al menos una imagen")
 
-    // Armado FormData
     const form = new FormData()
     form.append("name", name)
     form.append("description", description)
     form.append("price", parsedPrice.toString())
     form.append("categoryId", categoryId.toString())
+    form.append("isActive", String(isActive))
+    if (coverImageId !== null) form.append("coverImageId", String(coverImageId))
 
     const variantsPayload = variants
       .filter((v) => v.name.trim() && v.options.length > 0)
@@ -227,7 +222,6 @@ export default function ProductForm({
 
     images.forEach((file) => form.append("images", file))
 
-    // Endpoint según modo
     const url =
       mode === "edit" && initialValues
         ? `${API}/product/${initialValues.id}`
@@ -236,39 +230,35 @@ export default function ProductForm({
 
     try {
       setSubmitting(true)
-      const res = await fetchWithRefresh(url, {
-        method,
-        body: form, // ⬅️ no seteamos Content-Type
-      })
+      const res = await fetchWithRefresh(url, { method, body: form })
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
         throw new Error((errJson as { message?: string } | null)?.message || "Error al guardar el producto")
       }
 
       toast.success(mode === "edit" ? "Producto actualizado" : "Producto creado")
-      // Reset si es create; si es edit, salimos de edición
       if (mode === "create") {
         setName("")
         setDescription("")
         setPrice("")
+        setIsActive(true)
         setImages([])
         setVariants([])
+        setCoverImageId(null)
       } else {
         onCancelEdit?.()
       }
       onSuccess()
     } catch (err) {
-      if (err instanceof Error) {
-        toast.error(err.message || "Error de red, inténtalo nuevamente")
-      } else {
-        toast.error("Error de red, inténtalo nuevamente")
-      }
+      toast.error(err instanceof Error ? err.message : "Error de red, inténtalo nuevamente")
     } finally {
       setSubmitting(false)
     }
   }
 
   if (loadingCats) return <p>Cargando categorías…</p>
+
+  const existingImages = initialValues?.images ?? []
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -338,10 +328,72 @@ export default function ProductForm({
         </select>
       </div>
 
-      {/* Imágenes */}
+      {/* Activo / Oculto */}
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="isActive"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+          className="w-4 h-4 accent-blue-600"
+        />
+        <label htmlFor="isActive" className="text-sm font-medium select-none">
+          Activo / Visible
+        </label>
+        {isZecat && (
+          <span className="text-xs text-gray-400 ml-1">
+            (En caso de ocultarse, el producto no se sincronizará)
+          </span>
+        )}
+        {!isZecat && (
+          <span className="text-xs text-gray-400 ml-1">
+            (En caso de ocultarse, el producto no se mostrará en la tienda)
+          </span>
+        )}
+      </div>
+
+      {/* Imagen de portada — solo en edición con imágenes existentes */}
+      {mode === "edit" && existingImages.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium mb-2">Imagen de portada</label>
+          <p className="text-xs text-gray-400 mb-2">Seleccioná la imagen que se mostrará primero.</p>
+          <div className="flex flex-wrap gap-3">
+            {existingImages.map((img) => {
+              const selected = coverImageId === img.id
+              return (
+                <button
+                  key={img.id}
+                  type="button"
+                  onClick={() => setCoverImageId(img.id)}
+                  className={`relative w-20 h-20 rounded overflow-hidden border-2 transition-all ${
+                    selected
+                      ? "border-blue-600 ring-2 ring-blue-400"
+                      : "border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  <Image
+                    src={img.url}
+                    alt="Miniatura"
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                  {selected && (
+                    <span className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-xs text-center py-0.5">
+                      Portada
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Imágenes nuevas */}
       <div>
         <label className="block text-sm font-medium mb-1">
-          {mode === "create" ? "Imágenes (al menos 1)" : "Imágenes (opcional: agrega nuevas)"}
+          {mode === "create" ? "Imágenes (al menos 1)" : "Agregar imágenes nuevas (opcional)"}
         </label>
         <input
           type="file"

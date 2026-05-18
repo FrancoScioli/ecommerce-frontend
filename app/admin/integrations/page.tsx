@@ -6,30 +6,45 @@ import { toast } from 'react-toastify'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+function formatSyncDate(iso: string | null | undefined): string {
+  if (!iso) return 'Nunca'
+  const d = new Date(iso)
+  return d.toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
 export default function IntegrationsPage() {
   const [syncing, setSyncing] = useState(false)
   const [intervalHours, setIntervalHours] = useState<string>('1')
   const [savingInterval, setSavingInterval] = useState(false)
   const [detailSyncHour, setDetailSyncHour] = useState<string>('23')
   const [savingDetailHour, setSavingDetailHour] = useState(false)
+  const [lastFastSync, setLastFastSync] = useState<string | null>(null)
+  const [lastDetailSync, setLastDetailSync] = useState<string | null>(null)
   const fetchWithRefresh = useFetchWithRefresh()
 
-  useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const res = await fetchWithRefresh(`${API_BASE}/pricing-config`, { method: 'GET' })
-        if (!res.ok) return
-        const data = await res.json()
-        setIntervalHours(String(data.zecatSyncIntervalHours ?? 1))
-        setDetailSyncHour(String(data.zecatDetailSyncHour ?? 23))
-      } catch {
-        // silencioso
-      }
+  const loadConfig = async () => {
+    try {
+      const res = await fetchWithRefresh(`${API_BASE}/pricing-config`, { method: 'GET' })
+      if (!res.ok) return
+      const data = await res.json()
+      setIntervalHours(String(data.zecatSyncIntervalHours ?? 1))
+      setDetailSyncHour(String(data.zecatDetailSyncHour ?? 23))
+      setLastFastSync(data.zecatLastFastSyncAt ?? null)
+      setLastDetailSync(data.zecatLastDetailSyncAt ?? null)
+    } catch {
+      // silencioso
     }
-    loadConfig()
-  }, [fetchWithRefresh])
+  }
 
-  const triggerSync = async (scope: 'all' | 'categories' | 'products' | 'fast' = 'all') => {
+  useEffect(() => {
+    loadConfig()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const triggerSync = async (scope: 'categories' | 'fast') => {
     try {
       setSyncing(true)
       const res = await fetchWithRefresh(`${API_BASE}/admin/zecat/sync?scope=${scope}`, {
@@ -38,6 +53,7 @@ export default function IntegrationsPage() {
       if (!res.ok) throw new Error('No se pudo iniciar la sincronización')
       const data = await res.json().catch(() => ({}))
       toast.success(data.message || 'Sincronización iniciada')
+      await loadConfig()
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Error al iniciar sincronización')
     } finally {
@@ -146,6 +162,10 @@ export default function IntegrationsPage() {
             {savingInterval ? 'Guardando…' : 'Guardar'}
           </button>
         </form>
+
+        <p className="text-xs text-gray-500">
+          Última sincronización: <span className="font-medium">{formatSyncDate(lastFastSync)}</span>
+        </p>
       </div>
 
       {/* Bloque 2: Personalización de Productos */}
@@ -181,6 +201,9 @@ export default function IntegrationsPage() {
           </button>
         </form>
 
+        <p className="text-xs text-gray-500">
+          Última sincronización: <span className="font-medium">{formatSyncDate(lastDetailSync)}</span>
+        </p>
         <p className="text-xs text-gray-400">
           Por recomendación de Zecat, el horario para realizar la actualización automática será entre las 23 hs y las 6 hs.
         </p>
