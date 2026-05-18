@@ -82,10 +82,10 @@ export default function ProductForm({
   const [isActive, setIsActive] = useState(true)
   const [images, setImages] = useState<File[]>([])
   const [variants, setVariants] = useState<VariantInput[]>([])
+  const [variantsModified, setVariantsModified] = useState(false)
   const [allCategories, setAllCategories] = useState<Category[]>([])
   const [loadingCats, setLoadingCats] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  // coverImageId: id de la imagen existente seleccionada como portada
   const [coverImageId, setCoverImageId] = useState<number | null>(null)
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -143,6 +143,7 @@ export default function ProductForm({
       ? (rawVariants as unknown[]).map(normalizeVariant)
       : []
     setVariants(normalized)
+    setVariantsModified(false)
     setImages([])
   }, [mode, initialValues])
 
@@ -153,16 +154,19 @@ export default function ProductForm({
 
   function addVariant() {
     setVariants((current) => [...current, { name: "", options: [], inputValue: "" }])
+    setVariantsModified(true)
   }
 
   function removeVariant(index: number) {
     setVariants((current) => current.filter((_, i) => i !== index))
+    setVariantsModified(true)
   }
 
   function updateVariantName(index: number, value: string) {
     setVariants((current) =>
       current.map((v, i) => (i === index ? { ...v, name: value } : v))
     )
+    setVariantsModified(true)
   }
 
   function updateOptionInput(index: number, value: string) {
@@ -183,6 +187,7 @@ export default function ProductForm({
         return { ...v, options: [...v.options, trimmed], inputValue: "" }
       })
     )
+    setVariantsModified(true)
   }
 
   function removeOption(varIdx: number, optIdx: number) {
@@ -192,6 +197,7 @@ export default function ProductForm({
         return { ...v, options: v.options.filter((_, oi) => oi !== optIdx) }
       })
     )
+    setVariantsModified(true)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -212,13 +218,16 @@ export default function ProductForm({
     form.append("isActive", String(isActive))
     if (coverImageId !== null) form.append("coverImageId", String(coverImageId))
 
-    const variantsPayload = variants
-      .filter((v) => v.name.trim() && v.options.length > 0)
-      .map((v) => ({
-        name: v.name.trim(),
-        options: v.options.map((o) => o.trim()).filter(Boolean),
-      }))
-    form.append("variants", JSON.stringify(variantsPayload))
+    // Solo enviar variants si fueron modificadas; de lo contrario el backend no las toca
+    if (mode === "create" || variantsModified) {
+      const variantsPayload = variants
+        .filter((v) => v.name.trim() && v.options.length > 0)
+        .map((v) => ({
+          name: v.name.trim(),
+          options: v.options.map((o) => o.trim()).filter(Boolean),
+        }))
+      form.append("variants", JSON.stringify(variantsPayload))
+    }
 
     images.forEach((file) => form.append("images", file))
 
@@ -244,6 +253,7 @@ export default function ProductForm({
         setIsActive(true)
         setImages([])
         setVariants([])
+        setVariantsModified(false)
         setCoverImageId(null)
       } else {
         onCancelEdit?.()
